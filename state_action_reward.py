@@ -1,36 +1,27 @@
 """
 In this file the functions to evaluate the state, reward are defined and also the action is implemented
 """
+
 import win32com.client
 import numpy as np
-import networkx as nx
 from  DSS_Initialize import*
 
 
-# Get the nodes of the switches from this function---includes all the details of switches
+# To get the details of switches and their status
 def switchInfo(DSSCktobj):
-    #Input the DSSCircuitobject and initial circuit graph
-    #Returns: A list of dictionaries which contains 
+    #Input:   DSS Circuit Object
+    #Returns: A list of dictionaries which contains: 
     #         The name of the switch.
-    #         The associated line which is the edge label
-    #         The from bus and to bus of the line housing the switch
-    #         The status of the switch in the DSSCircuit object passed as system state
+    #         The associated line of the switch (the edge label).
+    #         The status of the switch in the DSS Circuit object
     
     AllSwitches=[]
     i=DSSCktobj.dssCircuit.SwtControls.First
     while i>0:
         name=DSSCktobj.dssCircuit.SwtControls.Name
         line=DSSCktobj.dssCircuit.SwtControls.SwitchedObj
-        # br_obj=Branch(DSSCktobj,line)
-        # from_bus=br_obj.bus_fr
-        # to_bus=br_obj.bus_to
         DSSCktobj.dssCircuit.SetActiveElement(line)
-        # if(DSSCktobj.dssCircuit.ActiveCktElement.IsOpen(2,0)):
-        #     sw_status=0
-        # else:
-        #     sw_status=1
         sw_status=DSSCktobj.dssCircuit.SwtControls.Action -1
-        # AllSwitches.append({'switch name':name,'edge name':line, 'from bus':from_bus.split('.')[0], 'to bus':to_bus.split('.')[0], 'status':sw_status})
         AllSwitches.append({'switch name':name,'edge name':line, 'status':sw_status})
         
         i=DSSCktobj.dssCircuit.SwtControls.Next
@@ -38,42 +29,45 @@ def switchInfo(DSSCktobj):
     return AllSwitches     
 
 
-    
 def get_state(DSSCktobj,G):
-    #Input: object of type DSSObj.ActiveCircuit (COM interface for OpenDSS Circuit)
-    #Returns: dictionary of circuit loss, bus voltage, branch powerflow, radiality of network
+    #Input: DSS Circuit Object (COM interface for OpenDSS Circuit) and the equivalent Graph representation
+    #Returns: Dictionary to indicate state which includes:
+              # Total Energy Supplied, bus voltage (nodes), branch powerflow (edges), adjacency, voltage and convergence violations
     
     node_list=list(G_init.nodes())
     Adj_mat=nx.adjacency_matrix(G,nodelist=node_list)
-    # Extracting pu loss for the DSS circuit object 
-    DSSCktobj.dssTransformers.First
-    KVA_base=DSSCktobj.dssTransformers.kva
-    # P_loss=(DSSCktObj.dssCircuit.Losses[0])/(1000*KVA_base)
-    # Q_loss=(DSSCktObj.dssCircuit.Losses[1])/(1000*KVA_base)
 
-    ENS=0
-    for ld in list(DSSCktobj.dssLoads.AllNames):
+    # Estimating the total energy supplied to the end users given the state encompassed in DSS Circuit
+    DSSCktobj.dssTransformers.First
+    KVA_base=DSSCktobj.dssTransformers.kva #To convert into per unit
+
+    En_Supply=0
+    for ld in list(DSSCktobj.dssLoads.AllNames): # For each load
         DSSCktobj.dssCircuit.SetActiveElement("Load." + ld) #set the load as the active element
-        S=np.array(DSSCktobj.dssCircuit.ActiveCktElement.Powers)
+        S=np.array(DSSCktobj.dssCircuit.ActiveCktElement.Powers) # Power vector (3 phase P and Q for each load)
         ctidx = 2 * np.array(range(0, min(int(S.size/ 2), 3)))
         P = S[ctidx] #active power in KW
-        Q =S[ctidx + 1] #angle in KVA
-        Power_Supp=sum(P)
+        Q =S[ctidx + 1] #reactive power in KVar
+        Power_Supp=sum(P) # total active power supplied at load
         if np.isnan(Power_Supp):
-            Power_Supp=0.0
-        # Demand = DSSCktobj.dssCircuit.ActiveCktElement.Properties('KW').Val[0]
-        # ENS_ld= Demand -Power_Supp
-        ENS_ld=Power_Supp
-        ENS= ENS+ENS_ld
-
+            Power_Supp=0    # Nodes which are isolated with loads but no generators return nan-- ignore that(consider as inactive)   
+        En_Supply= En_Supply + Power_Supp
+        
 
     # Extracting the pu node voltages at all buses
+    
     Vmagpu=[]
-    nodes_conn=[]
-    for b in node_list:
-        V=Bus(DSSCktobj,b).Vmag
+    active_conn=[]
+    for b in node_list:    
+        V = Bus(DSSCktobj,b).Vmag
+        active_conn.append(Bus(DSSCktobj,b).nodes)
+        temp_flag = np.isnan(V) # Nodes which are isolated with loads but no generators return nan-- ignore that(consider as inactive)
+        if np.any(temp_flag,where=True):
+            V[temp_flag] = 0
+            temp_conn=[n for n in active_conn[node_list.index(b)] if temp_flag[n-1]==False]
+            active_conn[node_list.index(b)]=np.array(temp_conn) #only active node connections
         Vmagpu.append(V)
-        nodes_conn.append(Bus(DSSCktobj,b).nodes)
+    
     # Extracting the pu average branch currents(also includes the open branches)           
     
     I_flow=[]
@@ -88,12 +82,12 @@ def get_state(DSSCktobj,G):
        Conv_const=0
     else:
        conv_flag=0
-       Conv_const=1000  # NonConvergence penalty   
+       Conv_const=100000# NonConvergence penalty   
  
     # The voltage violation
-    V_viol=Volt_Constr(Vmagpu,nodes_conn)
+    V_viol=Volt_Constr(Vmagpu,active_conn)
         
-    return {"ENS":ENS,"NodeFeat(BusVoltage)":np.array(Vmagpu), "EdgeFeat(branchflow)":np.array(I_flow),"Adjacency":np.array(Adj_mat.todense()), "VoltageViolation":V_viol, "Convergence":Conv_const}
+    return {"EnergySupp":En_Supply,"NodeFeat(BusVoltage)":np.array(Vmagpu), "EdgeFeat(branchflow)":np.array(I_flow),"Adjacency":np.array(Adj_mat.todense()), "VoltageViolation":V_viol, "ConvergenceViolation":Conv_const}
 
     
 def take_action(action,out_edges):
@@ -165,7 +159,6 @@ def take_action(action,out_edges):
                           Slack_DER['name']= ('bus_'+ gen_bus)
                 Virtual_Slack.append(Slack_DER)
     
-
     #---- Assign slack bus in DSSCkt                 
     for vs in Virtual_Slack:
         Vs_name=vs['name']
@@ -191,41 +184,27 @@ def take_action(action,out_edges):
 
 
 # Constraint for voltage violation 
-def Volt_Constr(Vmagpu,nodes_conn):
+def Volt_Constr(Vmagpu,active_conn):
     #Input: The pu magnitude of node voltages at all buses, node activated or node phase of all buses
-    V_upper=1.10
-    V_lower=0.90
-    Vmin=100
-    Vmax=0    
-    for i in range(len(nodes_conn)):
-        for phase_co in nodes_conn[i]:
-            if (Vmagpu[i][phase_co-1]<Vmin):
-                Vmin=Vmagpu[i][phase_co-1]
-            if (Vmagpu[i][phase_co-1]>Vmax):
-                Vmax=Vmagpu[i][phase_co-1]
-    if (Vmax > V_upper) and (Vmin < V_lower):             
-        V_viol=abs(Vmax-V_upper)+abs(V_lower-Vmin) # For the minimum and maximum voltage in the network(all nodes of all buses)
-    else:
-        V_viol=0
-    return V_viol  
+    Vmax=1.10
+    Vmin=0.90
+    
+    V_ViolSum=0
+    for i in range(len(active_conn)):
+        for phase_co in active_conn[i]:
+            if (Vmagpu[i][phase_co-1]<Vmin):            
+                V_ViolSum = V_ViolSum + abs(Vmin-Vmagpu[i][phase_co-1])
+            if (Vmagpu[i][phase_co-1]>Vmax):                      
+                V_ViolSum = V_ViolSum + abs(Vmagpu[i][phase_co-1]-Vmax)
+    return V_ViolSum  
 
          
-# Constraint for branch flow violation
-def Flow_Constr(I_flow):
-    I_upper=2 #pu upper limit for average branch current
-    I_lower=-2 # pu lower limit for average branch current
-    flow_viol=0
-    for i in I_flow:
-        if (i>I_upper) and (i<I_lower):
-            flow_viol=flow_viol+abs(i-I_upper)+abs(I_lower-i) #sum of all branch current violations
-        else:
-            flow_viol=0
-    return flow_viol
+
 
 def get_reward(observ_dict):
     #Input: A dictionary describing the state of the network
-    #Output: reward        
-    reward= observ_dict['ENS']-observ_dict['Convergence']
-    # TO DO: Voltage and Current violations multiplier
-
+    # ----#Output: reward- minimize load outage, penalize non convergence and closing of outage lines
+      
+    reward= observ_dict['EnergySupp']-observ_dict['ConvergenceViolation']-observ_dict['VoltageViolation']
+  
     return reward

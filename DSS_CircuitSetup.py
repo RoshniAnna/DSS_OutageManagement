@@ -101,8 +101,8 @@ class Branch:  # to extract properties of branch
        # Problem is that Line.650632 already exceeds normal amps in Opendss=400 A and 
        # Normal Amps in Kerstings book =530 A. So I will consider EmergAmps=600 A
         I_avg=np.average(I_mag)/I_base #average of all three phases in pu
-        self.bus_fr=bus1
-        self.bus_to=bus2
+        self.bus_fr=bus1.split('.')[0]
+        self.bus_to=bus2.split('.')[0]
         #self.nphases=nphases
         self.Cap=I_avg
         self.MaxCap=MaxCap 

@@ -3,6 +3,9 @@ In this file the sectionalizing and tie switch details are specified.
 The DER details are also specified (in particular the PV generators and BESS info). 
 Also the path for the DSS file containing the circuit information is specified.
 The final DSS circuit which will be used by the environment is created.
+
+---G_init is used to maintain order of nodes, edges and also the varying graph scenario
+---G_base is used to simulate fault isolation
 """
 
 import os
@@ -28,6 +31,7 @@ generators=[{'no':1, 'bus':'645', 'numphase':1, 'phaseconn':'.2', 'size':20, 'kV
             {'no':6, 'bus':'680', 'numphase':3, 'phaseconn':'.1.2.3', 'size':1000, 'kV':4.16, 'Gridforming':'Yes'},
             {'no':7, 'bus':'675', 'numphase':3, 'phaseconn':'.1.2.3', 'size':500, 'kV':4.16,'Gridforming':'No'}]
 
+
 substatn_id='sourcebus'
 #------------ Define the network with additions of DER, BESS and switches -------------------------------------
 def initialize():       
@@ -42,7 +46,24 @@ def initialize():
     G_init=graph_struct(DSSCktobj)
     return DSSCktobj,G_init,conv_flag
 
-DSSCktobj,G_init,conv_flag= initialize()   
+DSSCktobj,G_init,conv_flag= initialize() 
+
+# G_init has both sectionalizing and tie switches  
+
+#--------- Graph with normal operating topology (with only sectionalizing switches)--for outage simulation (fault isolation)
+tie_edges=[]
+i=DSSCktobj.dssCircuit.SwtControls.First
+while i>0:
+    name=DSSCktobj.dssCircuit.SwtControls.Name
+    if name[:5]=='swtie':
+       line=DSSCktobj.dssCircuit.SwtControls.SwitchedObj
+       br_obj=Branch(DSSCktobj,line)
+       from_bus=br_obj.bus_fr
+       to_bus=br_obj.bus_to
+       tie_edges.append((from_bus,to_bus))
+    i=DSSCktobj.dssCircuit.SwtControls.Next 
+G_base = G_init.copy()    
+G_base.remove_edges_from(tie_edges)
 
 #---------------------Create a dictionary with name of generator element and corresponding buses and also one with blackstart capability---------------------------
 
@@ -56,9 +77,9 @@ while i>0:
       Generator_Buses[elemName]=bus_connectn
       num=int(elemName[-1])-1
       if generators[num]['Gridforming'] == 'Yes':
-         Generator_BlackStart[elemName]=1
+          Generator_BlackStart[elemName]=1
       else:
-         Generator_BlackStart[elemName]=0 
+          Generator_BlackStart[elemName]=0 
       i = DSSCktobj.dssCircuit.Generators.Next
 
 #----------------- Create a dictionary with the name of loads and corresponding bus ---------------------
@@ -79,7 +100,6 @@ nodes_conn=[]
 for bus in node_list:
     nodes_conn.append(Bus(DSSCktobj,bus).nodes)
     
-
 #-----------For each bus creating a generator element, load element, blackstart indicator------------
 # gen_buses = np.array(list(Generator_Buses.values())) # all the generator buses
 # gen_elems=  list(Generator_Buses.keys()) # all the generator elements
@@ -96,6 +116,8 @@ for bus in node_list:
 #     Bus_Info.append({'Bus_id':n, 'Load_names':load_names, 'Generator_names':gen_names, 'Black_start':blackstart_flag})   
 #     # Use this information to encode the graph
 
+
+#------ Assigning a black start indicator for generators--------------------------------
 gen_buses = np.array(list(Generator_Buses.values())) # all the generator buses
 gen_elems=  list(Generator_Buses.keys()) # all the generator elements
 Gen_Info ={}
@@ -104,124 +126,11 @@ for n in node_list:
     gen_names=[gen_elems[x]  for x in  np.where(gen_buses == n)[0]]
     if (len(gen_names)!=0):
         for g in gen_names:
-            blackstart_flag= blackstart_flag + Generator_BlackStart[g] 
+            blackstart_flag = blackstart_flag + Generator_BlackStart[g] 
         Gen_Info[n]= {'Generators':gen_names, 'Blackstart':blackstart_flag}
     
-     
-     
-'''
-  
-#----Parameters to evaluate min and max voltage at all nodes in all buses for time series simulation
-Vmin=100
-Vmax=0  
-min_busmark=max_busmark=''  
-min_phasemark=max_phasemark=0
+    
 
-  
-#-------------- Defining new monitors at each PV element -----------------------------------
-i = DSSCktobj.dssCircuit.Generators.First
-while i>0:
-      elem= DSSCktobj.dssCircuit.ActiveElement.Name          
-      DSSCktobj.dssText.command='New Monitor.PV_pq_' + str(i) + ' element=' + elem + ' terminal=1 mode=1 ppolar=no'
-      i = DSSCktobj.dssCircuit.Generators.Next
-
-
-# -------------Solve time series      
-DSSCktobj.dssText.command='Set mode=daily'
-DSSCktobj.dssText.command='Set stepsize=1h' 
-DSSCktobj.dssText.command='Set number=1' # this means that each solve command corresponds to one step
-t=0
-t_tot=24
- 
-# # Different switching combinations and check 
-# action =[1,1,0,0]
-
-# #-------------NEED TO IMPLEMENT ACTION HERE AFTER DEFINING MODE
-# i=DSSCktobj.dssCircuit.SwtControls.First
-# while (i>0):
-#     # Swobj=DSSCktobj.dssCircuit.SwtControls.SwitchedObj
-#     # DSSCktobj.dssCircuit.SetActiveElement(Swobj)
-#     if action[i-1]==0:
-#         # DSSCktobj.dssCircuit.ActiveCktElement.Open(1,0)
-#         DSSCktobj.dssText.command=('Swtcontrol.' + DSSCktobj.dssCircuit.SwtControls.Name+ '.Action=o')
-#         # DSSCktobj.dssText.command='open ' + Swobj +' term=1'       #switching the line open
-#     else:
-#         # DSSCktobj.dssCircuit.ActiveCktElement.Close(1,0)
-#         DSSCktobj.dssText.command=('Swtcontrol.'+ DSSCktobj.dssCircuit.SwtControls.Name+ '.Action=c')
-#         # DSSCktobj.dssText.command='close ' + Swobj +' term=1'      #switching the line close
-#     i=DSSCktobj.dssCircuit.SwtControls.Next      
-# DSSCktobj.dssSolution.Solve()
-
-
-while t< t_tot:
- 
-#-----NEED TO IMPLEMENT SWITCH CHANGE FOR EACH TIME INSTANCE    
-      i=DSSCktobj.dssCircuit.SwtControls.First
-      while (i>0):
-         Swobj=DSSCktobj.dssCircuit.SwtControls.SwitchedObj
-         DSSCktobj.dssCircuit.SetActiveElement(Swobj)
-         if action[i-1]==0:
-             DSSCktobj.dssText.command='open ' + Swobj +' term=1'       #switching the line open
-         else:
-             DSSCktobj.dssText.command='close ' + Swobj +' term=1'      #switching the line close
-         i=DSSCktobj.dssCircuit.SwtControls.Next  
-
-      DSSCktobj.dssSolution.Solve()
-      # ----Min and Max voltage with bus location and phase at which it occurs
-      for i in range(len(node_list)):
-          bus=node_list[i]
-          V_bus=Bus(DSSCktobj,bus).Vmag
-          for phase_co in nodes_conn[i]:
-              if (V_bus[phase_co-1]<Vmin):
-                  Vmin=V_bus[phase_co-1]
-                  min_busmark=bus
-                  min_phasemark=phase_co
-              if (V_bus[phase_co-1]>Vmax):
-                  Vmax=V_bus[phase_co-1]
-                  max_busmark=bus
-                  max_phasemark=phase_co
-
-      print('The max voltage in pu is:{} and it occurs at bus {}.{}'.format(Vmax,max_busmark,max_phasemark))
-      print('The min voltage in pu is:{} and it occurs at bus {}.{}'.format(Vmin,min_busmark,min_phasemark))
-      
-      # AllSwitches=[]
-      # i=DSSCktobj.dssCircuit.SwtControls.First
-      # while i>0:
-      #     name=DSSCktobj.dssCircuit.SwtControls.Name
-      #     line=DSSCktobj.dssCircuit.SwtControls.SwitchedObj
-      #     br_obj=Branch(DSSCktobj,line)
-      #     from_bus=br_obj.bus_fr
-      #     to_bus=br_obj.bus_to
-      #     DSSCktobj.dssCircuit.SetActiveElement(line)
-      #     if(DSSCktobj.dssCircuit.ActiveCktElement.IsOpen(1,0)):
-      #         sw_status=0
-      #     else:
-      #         sw_status=1
-      #     AllSwitches.append({'switch name':name,'edge name':line, 'from bus':from_bus.split('.')[0], 'to bus':to_bus.split('.')[0], 'status':sw_status})
-      #     i=DSSCktobj.dssCircuit.SwtControls.Next  
-      # print(AllSwitches)
-      t=t+1
-
-
-# #----------- Export PV and Storage monitors (may increase overhead)(if you want to see excel data--uncomment)
-# i=DSSCktobj.dssCircuit.Monitors.First
-# while i>0:
-#       name_mon= DSSCktobj.dssCircuit.Monitors.Name
-#       DSSCktobj.dssText.command=('Export monitor ' + name_mon)   
-#       i=DSSCktobj.dssCircuit.Monitors.Next    
-
-
-# # using the COM interface with  AllVariableNames, AllVariableValues of elements but requires extraction at each time step
-# DSSCktobj.dssCircuit.SetActiveClass('Storage')
-# i = DSSCktobj.dssCircuit.ActiveClass.First
-# while i>0:
-#         elem= DSSCktobj.dssCircuit.ActiveClass.Name
-#         Var_Names= DSSCktobj.dssCircuit.ActiveCktElement.AllVariableNames
-#         Var_Vals= DSSCktobj.dssCircuit.ActiveCktElement.AllVariableValues
-#         i = DSSCktobj.dssCircuit.ActiveClass.Next
-# #- COM interface for extracting the storage SOC, kwh
-
-'''  
 #-----------End of simulation , now some code snippet for checking switches, voltages, currents
 # Check switches status
 
