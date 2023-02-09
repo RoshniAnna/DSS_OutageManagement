@@ -29,7 +29,7 @@ def switchInfo(DSSCktobj):
     return AllSwitches     
 
 
-def get_state(DSSCktobj,G):
+def get_state(DSSCktobj,G, edgesout):
     #Input: DSS Circuit Object (COM interface for OpenDSS Circuit) and the equivalent Graph representation
     #Returns: Dictionary to indicate state which includes:
               # Total Energy Supplied, bus voltage (nodes), branch powerflow (edges), adjacency, voltage and convergence violations
@@ -86,8 +86,18 @@ def get_state(DSSCktobj,G):
  
     # The voltage violation
     V_viol=Volt_Constr(Vmagpu,active_conn)
-        
-    return {"EnergySupp":En_Supply,"NodeFeat(BusVoltage)":np.array(Vmagpu), "EdgeFeat(branchflow)":np.array(I_flow),"Adjacency":np.array(Adj_mat.todense()), "VoltageViolation":V_viol, "ConvergenceViolation":Conv_const}
+     
+    # To mask those switches which are out
+    SwitchMasks=[]
+    for x in SwitchLines:
+        if x in edgesout:
+           SwitchMasks.append(1)
+        else:
+           SwitchMasks.append(0)
+            
+    
+    
+    return {"EnergySupp":En_Supply,"NodeFeat(BusVoltage)":np.array(Vmagpu), "EdgeFeat(branchflow)":np.array(I_flow),"Adjacency":np.array(Adj_mat.todense()), "VoltageViolation":V_viol, "ConvergenceViolation":Conv_const,"ActionMasking":np.array(SwitchMasks)}
 
     
 def take_action(action,out_edges):

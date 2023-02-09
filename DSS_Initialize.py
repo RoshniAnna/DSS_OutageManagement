@@ -151,6 +151,8 @@ while i>0:
     AllSwitches.append({'switch name':name,'edge name':line, 'from bus':from_bus.split('.')[0], 'to bus':to_bus.split('.')[0], 'status':sw_status})
     i=DSSCktobj.dssCircuit.SwtControls.Next    
 
+SwitchLines=[(s['from bus'],s['to bus']) for s in AllSwitches]
+
 
 # # Check Node Voltages
 V_nodes=[]

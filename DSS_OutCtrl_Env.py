@@ -29,18 +29,19 @@ class DSS_OutCtrl_Env(gym.Env):
             "EdgeFeat(Branchflow)":spaces.Box(low=0, high=2,shape=(len(G_init.edges()),)),
             "Adjacency":spaces.Box(low=0, high=1,shape=(len(G_init.nodes()),len(G_init.nodes()))),
             "VoltageViolation":spaces.Box(low=0, high=1000,shape=(1,)),
-            "ConvergenceViolation":spaces.Box(low=0, high=1,shape=(1,))
+            "ConvergenceViolation":spaces.Box(low=0, high=1,shape=(1,)),
+            "ActionMasking":spaces.Box(low=0, high=1, shape=(len(G_init.nodes()),1))
             })
         print('Env initialized')
         
 
     def step(self, action):
         # Getting observation before action is executed
-        observation = get_state(self.DSSCktObj,self.G) #function to get state of the network        
+        observation = get_state(self.DSSCktObj,self.G,self.outedges) #function to get state of the network        
         # Executing the switching action
         self.DSSCktObj, self.G =take_action(action, self.outedges) #function to implement the action      
         #Getting observation after action is taken
-        obs_post_action = get_state(self.DSSCktObj,self.G)
+        obs_post_action = get_state(self.DSSCktObj,self.G,self.outedges)
         reward = get_reward(obs_post_action) #function to calculate reward
         done = True
         info = {}
@@ -80,7 +81,7 @@ class DSS_OutCtrl_Env(gym.Env):
         self.outedges=out_edges
         # self.outtime =out_time
         logging.info("reset complete\n")
-        obs = get_state(self.DSSCktObj,self.G)
+        obs = get_state(self.DSSCktObj,self.G,self.outedges)
         return obs
 
 
