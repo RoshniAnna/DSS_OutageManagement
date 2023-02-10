@@ -97,7 +97,7 @@ def get_state(DSSCktobj,G, edgesout):
             
     
     
-    return {"EnergySupp":En_Supply,"NodeFeat(BusVoltage)":np.array(Vmagpu), "EdgeFeat(branchflow)":np.array(I_flow),"Adjacency":np.array(Adj_mat.todense()), "VoltageViolation":V_viol, "ConvergenceViolation":Conv_const,"ActionMasking":np.array(SwitchMasks)}
+    return {"EnergySupp":np.array([En_Supply]),"NodeFeat(BusVoltage)":np.array(Vmagpu), "EdgeFeat(Branchflow)":np.array(I_flow),"Adjacency":np.array(Adj_mat.todense()), "VoltageViolation":np.array([V_viol]), "ConvergenceViolation":Conv_const,"ActionMasking":np.array(SwitchMasks)}
 
     
 def take_action(action,out_edges):

@@ -170,4 +170,3 @@ for e in list(G_init.edges(data=True)):
     I=DSSCktobj.dssCircuit.ActiveCktElement.Powers
     # I=Branch(DSSCktobj, branchname).Cap
     I_nodes.append({'name':branchname, 'Current':I})       
-

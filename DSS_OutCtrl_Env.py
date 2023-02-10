@@ -30,7 +30,7 @@ class DSS_OutCtrl_Env(gym.Env):
             "Adjacency":spaces.Box(low=0, high=1,shape=(len(G_init.nodes()),len(G_init.nodes()))),
             "VoltageViolation":spaces.Box(low=0, high=1000,shape=(1,)),
             "ConvergenceViolation":spaces.Box(low=0, high=1,shape=(1,)),
-            "ActionMasking":spaces.Box(low=0, high=1, shape=(len(G_init.nodes()),1))
+            "ActionMasking":spaces.Box(low=0, high=1, shape=(n_actions,1))
             })
         print('Env initialized')
         
