@@ -140,8 +140,8 @@ if __name__ == '__main__':
     model = PPO(policy=ActorCriticGCAPSPolicy, env=env,tensorboard_log="logger/", policy_kwargs=policy_kwargs, verbose=1, n_steps=200, batch_size=100,
             gamma=1.00,
             learning_rate=learning_rate_schedule(0.00001),
-                ent_coef=0.05
-                ).learn(total_timesteps=8000, n_eval_episodes=1, log_interval=1, tb_log_name="s1")
+                ent_coef=0.01
+                ).learn(total_timesteps=80000, n_eval_episodes=1, log_interval=1, tb_log_name="s1")
 
 
 

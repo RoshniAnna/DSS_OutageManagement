@@ -37,7 +37,7 @@ class DSS_OutCtrl_Env(gym.Env):
 
     def step(self, action):
         # Getting observation before action is executed
-        observation = get_state(self.DSSCktObj,self.G,self.outedges) #function to get state of the network        
+        observation = get_state(self.DSSCktObj,self.G,self.outedges) #function to get state of the network   
         # Executing the switching action
         self.DSSCktObj, self.G =take_action(action, self.outedges) #function to implement the action      
         #Getting observation after action is taken
@@ -82,6 +82,8 @@ class DSS_OutCtrl_Env(gym.Env):
         # self.outtime =out_time
         logging.info("reset complete\n")
         obs = get_state(self.DSSCktObj,self.G,self.outedges)
+        if np.isnan(obs["EdgeFeat(Branchflow)"]).astype(np.int32).sum() > 0:
+            return self.reset()     
         return obs
 
 
