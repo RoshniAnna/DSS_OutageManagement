@@ -42,16 +42,20 @@ def get_state(DSSCktobj,G, edgesout):
     KVA_base=DSSCktobj.dssTransformers.kva #To convert into per unit
 
     En_Supply=0
+    Total_Demand=0
     for ld in list(DSSCktobj.dssLoads.AllNames): # For each load
         DSSCktobj.dssCircuit.SetActiveElement("Load." + ld) #set the load as the active element
         S=np.array(DSSCktobj.dssCircuit.ActiveCktElement.Powers) # Power vector (3 phase P and Q for each load)
         ctidx = 2 * np.array(range(0, min(int(S.size/ 2), 3)))
         P = S[ctidx] #active power in KW
-        Q =S[ctidx + 1] #reactive power in KVar
-        Power_Supp=sum(P) # total active power supplied at load
+        Q = S[ctidx + 1] #reactive power in KVar
+        Power_Supp = sum(P) # total active power supplied at load
+        Demand = float (DSSCktobj.dssCircuit.ActiveCktElement.Properties('kw').Val)
         if np.isnan(Power_Supp):
-            Power_Supp=0    # Nodes which are isolated with loads but no generators return nan-- ignore that(consider as inactive)   
-        En_Supply= En_Supply + Power_Supp
+            Power_Supp = 0    # Nodes which are isolated with loads but no generators return nan-- ignore that(consider as inactive)   
+        En_Supply = En_Supply + Power_Supp
+        Total_Demand =  Total_Demand + Demand  
+        En_Supply_perc = En_Supply/Total_Demand
         
 
     # Extracting the pu node voltages at all buses
@@ -97,7 +101,7 @@ def get_state(DSSCktobj,G, edgesout):
             
     
     
-    return {"EnergySupp":np.array([En_Supply]),"NodeFeat(BusVoltage)":np.array(Vmagpu), "EdgeFeat(Branchflow)":np.array(I_flow),"Adjacency":np.array(Adj_mat.todense()), "VoltageViolation":np.array([V_viol]), "ConvergenceViolation":Conv_const,"ActionMasking":np.array(SwitchMasks)}
+    return {"EnergySupp":np.array([En_Supply_perc]),"NodeFeat(BusVoltage)":np.array(Vmagpu), "EdgeFeat(Branchflow)":np.array(I_flow),"Adjacency":np.array(Adj_mat.todense()), "VoltageViolation":np.array([V_viol]), "ConvergenceViolation":Conv_const,"ActionMasking":np.array(SwitchMasks)}
 
     
 def take_action(action,out_edges):
@@ -202,10 +206,12 @@ def Volt_Constr(Vmagpu,active_conn):
     V_ViolSum=0
     for i in range(len(active_conn)):
         for phase_co in active_conn[i]:
-            if (Vmagpu[i][phase_co-1]<Vmin):            
-                V_ViolSum = V_ViolSum + abs(Vmin-Vmagpu[i][phase_co-1])
-            if (Vmagpu[i][phase_co-1]>Vmax):                      
-                V_ViolSum = V_ViolSum + abs(Vmagpu[i][phase_co-1]-Vmax)
+            if (Vmagpu[i][phase_co-1]<Vmin):  
+                viol = abs(Vmin-Vmagpu[i][phase_co-1])/Vmin
+                V_ViolSum = V_ViolSum + viol
+            if (Vmagpu[i][phase_co-1]>Vmax): 
+                viol = abs(Vmagpu[i][phase_co-1]-Vmax)/Vmax                   
+                V_ViolSum = V_ViolSum + viol
     return V_ViolSum  
 
          
