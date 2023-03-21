@@ -86,7 +86,7 @@ def get_state(DSSCktobj,G, edgesout):
        Conv_const=0
     else:
        conv_flag=0
-       Conv_const=100000# NonConvergence penalty   
+       Conv_const=10# NonConvergence penalty   
  
     # The voltage violation
     V_viol=Volt_Constr(Vmagpu,active_conn)
@@ -101,7 +101,14 @@ def get_state(DSSCktobj,G, edgesout):
             
     
     
-    return {"EnergySupp":np.array([En_Supply_perc]),"NodeFeat(BusVoltage)":np.array(Vmagpu), "EdgeFeat(Branchflow)":np.array(I_flow),"Adjacency":np.array(Adj_mat.todense()), "VoltageViolation":np.array([V_viol]), "ConvergenceViolation":Conv_const,"ActionMasking":np.array(SwitchMasks)}
+    return {
+        "EnergySupp":np.array([En_Supply_perc]),
+        "NodeFeat(BusVoltage)":np.array(Vmagpu), 
+        "EdgeFeat(Branchflow)":np.array(I_flow),
+        "Adjacency":np.array(Adj_mat.todense()), 
+        "VoltageViolation":np.array([V_viol]), 
+        "ConvergenceViolation":np.array([Conv_const]),
+        "ActionMasking":np.array(SwitchMasks)}
 
     
 def take_action(action,out_edges):
@@ -220,7 +227,13 @@ def Volt_Constr(Vmagpu,active_conn):
 def get_reward(observ_dict):
     #Input: A dictionary describing the state of the network
     # ----#Output: reward- minimize load outage, penalize non convergence and closing of outage lines
-      
-    reward= observ_dict['EnergySupp']-observ_dict['ConvergenceViolation']-observ_dict['VoltageViolation']
+
+
+    if observ_dict['ConvergenceViolation'] >0 or observ_dict['VoltageViolation'] > 0:
+        reward =np.array([0.0]) #- observ_dict['VoltageViolation']/100
+    else:
+     
+        reward= observ_dict['EnergySupp'] #- observ_dict['VoltageViolation']/100 #-observ_dict['ConvergenceViolation']-observ_dict['VoltageViolation']
   
+    # reward= observ_dict['EnergySupp']-observ_dict['ConvergenceViolation']-observ_dict['VoltageViolation']
     return reward

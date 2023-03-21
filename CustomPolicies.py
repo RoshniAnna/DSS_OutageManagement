@@ -99,7 +99,7 @@ class ActorCriticGCAPSPolicy(BasePolicy):
         # agent_node_dim = features_extractor_kwargs['agent_node_dim']
         self.node_dim=features_extractor_kwargs['node_dim']
 
-        value_net_net = [th.nn.Linear(2*features_dim, 2*features_dim, bias=False),th.nn.Linear(2*features_dim, 1, bias=False)]
+        value_net_net = [th.nn.Linear(features_dim, 2*features_dim, bias=True),th.nn.Linear(2*features_dim, 2*features_dim, bias=True),th.nn.Linear(2*features_dim, 1, bias=True)]
         self.value_net = th.nn.Sequential(*value_net_net).to(device=device)
         from train import CustomGNN
         self.features_extractor = CustomGNN(
@@ -132,7 +132,7 @@ class ActorCriticGCAPSPolicy(BasePolicy):
             device=self.device,
         )
 
-    def forward(self, obs: th.Tensor, deterministic: bool = False) -> Tuple[th.Tensor, th.Tensor, th.Tensor]:
+    def forward(self, obs: th.Tensor, deterministic: bool = True) -> Tuple[th.Tensor, th.Tensor, th.Tensor]:
         """
         Forward pass in all the networks (actor and critic)
 
@@ -150,7 +150,7 @@ class ActorCriticGCAPSPolicy(BasePolicy):
         # Evaluate the values for the given observations
         values = self.value_net(latent_vf)
         distribution = self._get_action_dist_from_latent(latent_pi, obs)
-        actions = distribution.get_actions(deterministic=deterministic)
+        actions = distribution.get_actions(deterministic=True)
         log_prob = distribution.log_prob(actions)
         actions = actions.reshape((-1,) + self.action_space.shape)
         return actions, values, log_prob
@@ -177,6 +177,17 @@ class ActorCriticGCAPSPolicy(BasePolicy):
         actions, values, log_prob = self.forward(observation, deterministic=deterministic)
         return th.tensor([actions])
 
+    def predict_values(self, obs: th.Tensor) -> th.Tensor:
+        """
+        Get the estimated values according to the current policy given the observations.
+
+        :param obs:
+        :return: the estimated values.
+        """
+        features = self.extract_features(obs)
+        latent_vf = self.mlp_extractor.forward_critic(features)
+        return self.value_net(latent_vf)
+
     def _get_action_dist_from_latent(self, latent_pi: th.Tensor, obs) -> Distribution:
         """
         Retrieve action distribution given the latent codes.
@@ -187,7 +198,10 @@ class ActorCriticGCAPSPolicy(BasePolicy):
         mean_actions = self.action_net(latent_pi)
         # print(latent_pi)
         # print(mean_actions)
-        # mean_actions[th.tensor(obs["ActionMasking"].reshape(mean_actions.shape), dtype=th.bool)] = -math.inf
+        # print(obs["ActionMasking"])
+        # mean_actions[th.tensor(obs["ActionMasking"].reshape(mean_actions.shape), dtype=th.bool)] = -10000000# -math.inf
+        mean_actions[obs["ActionMasking"].to(th.bool)] += -1000000*(mean_actions[obs["ActionMasking"].to(th.bool)]).abs() #-10000000# -math.inf
+
 
         if isinstance(self.action_dist, DiagGaussianDistribution):
             return self.action_dist.proba_distribution(mean_actions, self.log_std)

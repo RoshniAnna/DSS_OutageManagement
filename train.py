@@ -7,12 +7,13 @@ from DSS_OutCtrl_Env import DSS_OutCtrl_Env
 # import datetime as dt
 import torch
 # from stable_baselines3.common.utils import set_random_seed
-from feedforwardPolicy import *
+# from feedforwardPolicy import *
 from stable_baselines3 import A2C, PPO
 #from CustomPolicies import ActorCriticGCAPSPolicy
 from DSS_Initialize import   *
 from CustomPolicies import ActorCriticGCAPSPolicy
-
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 import pickle
 from stable_baselines3.common.utils import set_random_seed
 
@@ -49,17 +50,17 @@ class CustomGNN(BaseFeaturesExtractor):
         self.normalization_1 = torch.nn.BatchNorm1d(n_dim * n_p)
 
         self.W_F = torch.nn.Linear(n_dim * n_p, features_dim)
-        self.full_context_nn = th.nn.Linear(19, 128)
+        self.full_context_nn = torch.nn.Linear(19, 128)
         self.switch_encoder = torch.nn.Linear(16, 128)
 
-        self.activ = torch.nn.Sigmoid()
+        self.activ = torch.nn.LeakyReLU()
 
     def forward(self, data):
         X = data['NodeFeat(BusVoltage)']
         num_samples, num_locations, _ = X.size()
         A = data["Adjacency"]
         # print(A.shape)
-        D = torch.mul(torch.eye(num_locations).expand((num_samples, num_locations, num_locations)),
+        D = torch.mul(torch.eye(num_locations).expand((num_samples, num_locations, num_locations)).to(A.device),
                       (A.sum(-1))[:, None].expand((num_samples, num_locations, num_locations)))
 
         # Layer 1
@@ -88,7 +89,7 @@ class CustomGNN(BaseFeaturesExtractor):
         # )
         switch_embeddings = self.switch_encoder(h.permute(0,2,1))
        
-        context = self.full_context_nn(th.cat((data["EnergySupp"],data["VoltageViolation"], data["EdgeFeat(Branchflow)"]), -1))
+        context = self.full_context_nn(torch.cat((data["EnergySupp"],data["VoltageViolation"], data["EdgeFeat(Branchflow)"]), -1))
         
         final = switch_embeddings.mean(dim=1)+context
         
@@ -119,8 +120,9 @@ def make_env(rank, seed=0):
     return _init
 if __name__ == '__main__':
 # env = openDSSenv34()
-    num_cpu = 1
+    num_cpu = 4
     use_cuda = torch.cuda.is_available() 
+    # print(use_cuda)
     env = SubprocVecEnv([make_env(i) for i in range(num_cpu)])
 
     # n_envs = 4
@@ -131,17 +133,23 @@ if __name__ == '__main__':
         features_extractor_class=CustomGNN,
         features_extractor_kwargs=dict(features_dim=128,node_dim=3),
         #activation_fn=torch.nn.Sigmoid,
-        net_arch=[dict(vf=[128,256])],
+        net_arch=[dict(pi=[128,128])],
         device=torch.device("cuda:0" if use_cuda else "cpu")
         # optimizer_class = th.optim.RMSprop,
         # optimizer_kwargs = dict(alpha=0.89, eps=rms_prop_eps, weight_decay=0)
     )
 
-    model = PPO(policy=ActorCriticGCAPSPolicy, env=env,tensorboard_log="logger/", policy_kwargs=policy_kwargs, verbose=1, n_steps=200, batch_size=100,
-            gamma=1.00,
-            learning_rate=learning_rate_schedule(0.00001),
-                ent_coef=0.01
-                ).learn(total_timesteps=80000, n_eval_episodes=1, log_interval=1, tb_log_name="s1")
+    model = PPO(
+        policy=ActorCriticGCAPSPolicy, 
+        env=env,tensorboard_log="logger/", 
+        policy_kwargs=policy_kwargs, 
+        verbose=1,
+        n_steps=10000,
+        batch_size=20000,
+        gamma=1.00,
+        learning_rate=learning_rate_schedule(0.000001),
+        ent_coef=0.00
+        ).learn(total_timesteps=1000000, log_interval=1, tb_log_name="s1")
 
 
 

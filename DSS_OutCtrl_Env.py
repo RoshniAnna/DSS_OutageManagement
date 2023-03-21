@@ -30,7 +30,7 @@ class DSS_OutCtrl_Env(gym.Env):
             "Adjacency":spaces.Box(low=0, high=1,shape=(len(G_init.nodes()),len(G_init.nodes()))),
             "VoltageViolation":spaces.Box(low=0, high=1000,shape=(1,)),
             "ConvergenceViolation":spaces.Box(low=0, high=1,shape=(1,)),
-            "ActionMasking":spaces.Box(low=0, high=1, shape=(n_actions,1))
+            "ActionMasking":spaces.Box(low=0, high=1, shape=(n_actions,))
             })
         print('Env initialized')
         
@@ -44,9 +44,14 @@ class DSS_OutCtrl_Env(gym.Env):
         obs_post_action = get_state(self.DSSCktObj,self.G,self.outedges)
         reward = get_reward(obs_post_action) #function to calculate reward
         done = True
-        info = {}
+        info = {"is_success": done,
+                    "episode": {
+                        "r": reward,
+                        "l": 1
+                    }
+                    }
         logging.info('Step success')
-        return obs_post_action, reward, done, info
+        return obs_post_action, reward[0], done, info
 
 
     def reset(self):
