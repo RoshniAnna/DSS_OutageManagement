@@ -1,8 +1,5 @@
-Generic generators are used. Some have blackstart (gridforming) capability while some donot.
-In this I have not specified any shape for generator.
-Assumed constant generation.
+This encapsulates the enviornment for outage response to improve resilience.
+The opendssdirect version is used here as the environment.
+Both switching and load shedding/pickup is modeled.
 
-Here to test first switch control only is included.
-
-Check the branchflow(edge feature).
 
