@@ -10,7 +10,7 @@ The final DSS circuit which will be used by the environment is created.
 
 import os
 import networkx as nx
-from  DSS_CircuitSetup import*
+from  Environments.DSSdirect_13bus_loadandswitching.DSS_CircuitSetup import*
 
 #------------------- User defined inputs to modify the standard test network ---------------------------------
 

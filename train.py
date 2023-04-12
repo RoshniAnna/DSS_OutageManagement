@@ -2,7 +2,8 @@ import numpy as np
 import gym
 from stable_baselines3 import PPO
 # from stable_baselines.common import make_vec_env
-from Environments.Bus_13.DSS_OutCtrl_Env import DSS_OutCtrl_Env
+# from Environments.Bus_13.DSS_OutCtrl_Env import DSS_OutCtrl_Env
+from Environments.DSSdirect_13bus_loadandswitching.DSS_OutCtrl_Env import DSS_OutCtrl_Env
 # import json
 # import datetime as dt
 import torch
@@ -55,7 +56,8 @@ if __name__ == '__main__':
 
     checkpoint_callback = CheckpointCallback(save_freq=training_config.save_freq, save_path=training_config.model_save,
                                          name_prefix=training_config.node_encoder)
-    env = SubprocVecEnv([make_env(i) for i in range(num_cpu)])
+    # env = SubprocVecEnv([make_env(i) for i in range(num_cpu)])
+    env = DSS_OutCtrl_Env()
 
     policy_kwargs = dict(
         features_extractor_class=CustomGNN,
