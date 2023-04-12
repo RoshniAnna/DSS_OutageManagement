@@ -98,9 +98,9 @@ def CktModSetup(DSSfile,sectional_swt,tie_swt,generators): # give tie switches a
     DSSCktobj.compile_ckt_dss() #compiling the circuit #compiling should only be done once in the beginning
     #Setting the iteration limits higher and disabling the warning message window
     DSSCktobj.dss.Text.Command("Set Maxiterations=500")
-    DSSCktobj.dss.Text.Command("Set maxcontroliter=500")
+    DSSCktobj.dss.Text.Command("Set maxcontroliter=5000")
     # Donot put control mode= OFF at all...it will not allow switch control
-    DSSCktobj.dss.Basic.AllowForms(False) 
+    DSSCktobj.dss.Basic.AllowForms(0) 
 
     #### Make switch additions #####
     
