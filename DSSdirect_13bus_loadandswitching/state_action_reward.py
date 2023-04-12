@@ -82,7 +82,7 @@ def get_state(DSSCktobj, G, edgesout):
     else:
         conv_flag=0
         Conv_const=10# NonConvergence penalty   
-    print(active_conn)
+
     
     # The voltage violation
     V_viol=Volt_Constr(Vmagpu,active_conn)
