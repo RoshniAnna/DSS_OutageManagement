@@ -149,11 +149,10 @@ def take_action(action, out_edges):
         if G_sc.has_edge(u,v):
            G_sc.remove_edge(u,v) # Remove the edge in graph domain
         # Remove the element from the DSSCktobj
-        branch_names = G_init.edges[o_e]['label']
-        for b_name in branch_names:
-            DSSCktObj.dss.Circuit.SetActiveElement(b_name)
-            DSSCktObj.dss.Text.Command(f'Open {b_name} term=1')
-            DSSCktObj.dss.Solution.Solve() 
+        branch_name = G_init.edges[o_e]['label'][0]
+        DSSCktObj.dss.Circuit.SetActiveElement(branch_name)
+        DSSCktObj.dss.Text.Command(f'Open {branch_name} term=1')
+        DSSCktObj.dss.Solution.Solve() 
 
 
     #---------- Also remove the open switches from Graph Scenario
