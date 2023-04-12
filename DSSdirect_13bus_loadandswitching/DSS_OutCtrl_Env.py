@@ -73,10 +73,9 @@ class DSS_OutCtrl_Env(gym.Env):
         
         for o_e in out_edges:
             (u,v)=o_e
-            branch_names= G_init.edges[o_e]['label']
-            for b_name in branch_names:
-                self.DSSCktObj.dss.Text.Command(f'Open {b_name} term=1') #disable the outage line
-                self.DSSCktObj.dss.Solution.Solve() 
+            branch_name= G_init.edges[o_e]['label'][0]
+            self.DSSCktObj.dss.Text.Command(f'Open {branch_name} term=1') #disable the outage line
+            self.DSSCktObj.dss.Solution.Solve() 
         
         
         self.G.remove_edges_from(out_edges) #each instance of the graph includes the outage scenario
