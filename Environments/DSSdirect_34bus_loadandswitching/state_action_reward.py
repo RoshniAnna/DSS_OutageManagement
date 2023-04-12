@@ -82,11 +82,11 @@ def get_state(DSSCktobj, G, edgesout):
     else:
         conv_flag=0
         Conv_const=10# NonConvergence penalty   
-    print(active_conn)
-    
+
+
     # The voltage violation
     V_viol=Volt_Constr(Vmagpu,active_conn)
-     
+
     # To mask those switches which are out (including line and load switches)
     SwitchMasks=[]
     for x in SwitchLines:
@@ -96,14 +96,14 @@ def get_state(DSSCktobj, G, edgesout):
             SwitchMasks.append(0)
     for y in dispatch_loads:
         SwitchMasks.append(0)
-    
-    
+
+
     return {
         "EnergySupp":np.array([En_Supply_perc]),
-        "NodeFeat(BusVoltage)":np.array(Vmagpu), 
+        "NodeFeat(BusVoltage)":np.array(Vmagpu),
         "EdgeFeat(Branchflow)":np.array(I_flow),
-        "Adjacency":np.array(Adj_mat.todense()), 
-        "VoltageViolation":np.array([V_viol]), 
+        "Adjacency":np.array(Adj_mat.todense()),
+        "VoltageViolation":np.array([V_viol]),
         "ConvergenceViolation":np.array([Conv_const]),
         "ActionMasking":np.array(SwitchMasks)}
 
@@ -113,10 +113,10 @@ def take_action(action, out_edges):
     #Input: action multi binary type. i.e., the status of each switch if it is 0 open and 1 close,
     #  the status of loads appended in action after switches: 0 shed, 1:picked up
     #Returns:the circuit object with action implemented (and slack assigned), also the graph scenario
-    
+
     DSSCktObj,G_init,conv_flag = initialize() # local DSS object for just implementing action
     G_sc = G_init.copy() # Copy to create graph scenario
-    
+
    # -------------Implement Line Switching Action on DSSCircuit Object
     switch_actionidx = 0
     i=DSSCktObj.dss.SwtControls.First()
@@ -131,21 +131,21 @@ def take_action(action, out_edges):
             DSSCktObj.dss.Text.Command('Swtcontrol.'+ DSSCktObj.dss.SwtControls.Name() + '.Action=c')
             # DSSCktobj.dssText.command='close ' + Swobj +' term=1'      #switching the line close
         i=DSSCktObj.dss.SwtControls.Next()
-        
-    DSSCktObj.dss.Solution.Solve()     
+
+    DSSCktObj.dss.Solution.Solve()
 
    # -------------Implement Load Shedding Action on DSSCircuit Object
 
     for load_actionidx in range(switch_actionidx + 1, n_actions):
-        loadname = dispatch_loads[load_actionidx-switch_actionidx-1] 
+        loadname = dispatch_loads[load_actionidx-switch_actionidx-1]
         if action[load_actionidx] == 0: # If load is shed- disable the load
            DSSCktObj.dss.Circuit.SetActiveElement(loadname)
            DSSCktObj.dss.Text.Command(loadname + '.enabled="False"')
-        DSSCktObj.dss.Solution.Solve()    
-                    
+        DSSCktObj.dss.Solution.Solve()
+
     #----Disable outage lines from DSSCircuit and also from Graph Scenario
     for o_e in out_edges:
-        (u,v) = o_e        
+        (u,v) = o_e
         if G_sc.has_edge(u,v):
            G_sc.remove_edge(u,v) # Remove the edge in graph domain
         # Remove the element from the DSSCktobj
@@ -153,9 +153,9 @@ def take_action(action, out_edges):
         for b_name in branch_names:
             DSSCktObj.dss.Circuit.SetActiveElement(b_name)
             DSSCktObj.dss.Text.Command(b_name + '.enabled="False"')
-    DSSCktObj.dss.Solution.Solve()    
-    
-    
+    DSSCktObj.dss.Solution.Solve()
+
+
     #---------- Also remove the open switches from Graph Scenario
     i=DSSCktObj.dss.SwtControls.First()
     while i>0:
@@ -166,17 +166,17 @@ def take_action(action, out_edges):
              v=b_obj.bus_to.split('.')[0]
              if G_sc.has_edge(u,v):
                 G_sc.remove_edge(u,v) # Remove the edge in graph domain
-          i=DSSCktObj.dss.SwtControls.Next()    
+          i=DSSCktObj.dss.SwtControls.Next()
 
-    
+
     # #----- Finding network components and find virtual slack ------#
     Components= list(nx.connected_components(G_sc)) #components formed due to outage
-    Virtual_Slack=[] # for each component not connected to sourcebus...we will assign a slack 
+    Virtual_Slack=[] # for each component not connected to sourcebus...we will assign a slack
     if len(Components) >1 : #Only if there exists a network component unconnected to sourcebus virtual slack is assigned
-        for C in Components: #for each component        
+        for C in Components: #for each component
             if substatn_id not in C: # for the component unconnected to sourcebus
                 Slack_DER={'name':'','kVA':0}
-                # Find the DER corresponding to slack bus (largest grid forming DER) in component     
+                # Find the DER corresponding to slack bus (largest grid forming DER) in component
                 for gen_bus, gen_info in Gen_Info.items():
                     if gen_bus in C and gen_info['Blackstart']==1: #if generator is present and has gridforming capability
                        kva_val=0
@@ -187,44 +187,44 @@ def take_action(action, out_edges):
                           Slack_DER['kVA'] = kva_val
                           Slack_DER['name']= ('bus_'+ gen_bus)
                 Virtual_Slack.append(Slack_DER)
-    
-    #---- Assign slack bus in DSSCkt at the buses with virtual slack in different graph components               
+
+    #---- Assign slack bus in DSSCkt at the buses with virtual slack in different graph components
     for vs in Virtual_Slack:
         Vs_name=vs['name']
         if Vs_name != '':
             Vs_locatn=Vs_name.split('_')[1]
             Vs_MVA = Vs_MVAsc3 = vs['kVA']/1000 #MVA and MVAsc3 are set to be same
             Vs_MVAsc1 = Vs_MVAsc3/3 # MVAsc1 approax 1/3 of MVAsc3
-           
+
             DSSCktObj.dss.Circuit.SetActiveBus(Vs_locatn)
             # DSSCktobj.dssBus.kVBase gives the per phase (phase to neutral) voltage
             Vs_kv =DSSCktObj.dss.Bus.kVBase() * math.sqrt(3) # this has to be phase to phase
             DSSCktObj.dss.Text.Command(f"New Vsource.{Vs_name}  bus1={Vs_locatn}  basekV={str(Vs_kv)}  phases=3  Pu=1.00  angle=30  baseMVA={str(Vs_MVA)}  MVAsc3={str(Vs_MVAsc3)}  MVAsc1={str(Vs_MVAsc1)}  enabled=yes")
             # print(Vs_MVAsc3)
             # print(Vs_MVAsc1)
-            # DSSCktobj.dssText.command = 'Formedit'+ ' Vsource.' +Vs_name   
+            # DSSCktobj.dssText.command = 'Formedit'+ ' Vsource.' +Vs_name
             for gens in Gen_Info[Vs_locatn]['Generators']:
-                DSSCktObj.dss.Text.Command(gens + '.enabled=no')             
-    DSSCktObj.dss.Solution.Solve()    
-    
+                DSSCktObj.dss.Text.Command(gens + '.enabled=no')
+    DSSCktObj.dss.Solution.Solve()
+
     return DSSCktObj,G_sc
 
 
 
-# Constraint for voltage violation 
+# Constraint for voltage violation
 def Volt_Constr(Vmagpu,active_conn):
     #Input: The pu magnitude of node voltages at all buses, node activated or node phase of all buses
     Vmax=1.10
     Vmin=0.90
-    
+
     V_Viol= []
     for i in range(len(active_conn)):
         for phase_co in active_conn[i]:
-            if (Vmagpu[i][phase_co-1]<Vmin):  
+            if (Vmagpu[i][phase_co-1]<Vmin):
                 viol = abs(Vmin-Vmagpu[i][phase_co-1])/Vmin
                 V_Viol.append(viol)
-            if (Vmagpu[i][phase_co-1]>Vmax): 
-                viol = abs(Vmagpu[i][phase_co-1]-Vmax)/Vmax                   
+            if (Vmagpu[i][phase_co-1]>Vmax):
+                viol = abs(Vmagpu[i][phase_co-1]-Vmax)/Vmax
                 V_Viol.append(viol)
             V_ViolSum =np.mean(V_Viol)
     return V_ViolSum
@@ -236,12 +236,11 @@ def get_reward(observ_dict):
 
 
     if observ_dict['ConvergenceViolation'] >0:
-        reward =np.array([0.0]) 
+        reward =np.array([0.0])
     else:
-     
+
         reward= observ_dict['EnergySupp'] - observ_dict['VoltageViolation']
-  
+
     # reward= observ_dict['EnergySupp']-observ_dict['ConvergenceViolation']-observ_dict['VoltageViolation']
     return reward
-
 

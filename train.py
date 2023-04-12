@@ -3,7 +3,7 @@ import gym
 from stable_baselines3 import PPO
 # from stable_baselines.common import make_vec_env
 # from Environments.Bus_13.DSS_OutCtrl_Env import DSS_OutCtrl_Env
-from Environments.DSSdirect_13bus_loadandswitching.DSS_OutCtrl_Env import DSS_OutCtrl_Env
+
 # import json
 # import datetime as dt
 import torch
@@ -46,6 +46,13 @@ def make_env(rank, seed=0):
 
 
 if __name__ == '__main__':
+
+    env_size = 13
+
+    if env_size == 13:
+        from Environments.DSSdirect_13bus_loadandswitching.DSS_OutCtrl_Env import DSS_OutCtrl_Env
+    # elif env_size == 34: # will add more conditions once the 13 bus is fixed
+    #     from Environments.DSSdirect_13bus_loadandswitching.DSS_OutCtrl_Env import DSS_OutCtrl_Env
 
     training_config = get_training_config()
     num_cpu = training_config.num_cpu
