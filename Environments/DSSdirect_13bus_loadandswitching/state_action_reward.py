@@ -45,12 +45,14 @@ def get_state(DSSCktobj, G, edgesout):
         ctidx = 2 * np.array(range(0, min(int(S.size/ 2), 3)))
         P = S[ctidx] #active power in KW
         Q = S[ctidx + 1] #reactive power in KVar
-        Power_Supp = sum(P) # total active power supplied at load
+        if (np.isnan(P).any()) or (np.isnan(Q).any()):
+            Power_Supp = 0    # Nodes which are isolated with loads but no generators return nan-- ignore that(consider as inactive)  
+        else:
+            Power_Supp = sum(P) # total active power supplied at load
+        
         Demand = float (DSSCktobj.dss.Properties.Value('kW'))
-        if np.isnan(Power_Supp):
-            Power_Supp = 0    # Nodes which are isolated with loads but no generators return nan-- ignore that(consider as inactive)
         En_Supply = En_Supply + Power_Supp
-        Total_Demand =  Total_Demand + Demand
+        Total_Demand =  Total_Demand + Demand  
         En_Supply_perc = En_Supply/Total_Demand
 
     # Extracting the pu node voltages at all buses
