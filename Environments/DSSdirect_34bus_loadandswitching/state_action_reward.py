@@ -49,7 +49,9 @@ def get_state(DSSCktobj, G, edgesout):
             Power_Supp = 0    # Nodes which are isolated with loads but no generators return nan-- ignore that(consider as inactive)  
         else:
             Power_Supp = sum(P) # total active power supplied at load
-        
+       
+        if math.isnan(Power_Supp):
+           Power_Supp = 0        
         Demand = float (DSSCktobj.dss.Properties.Value('kW'))
         En_Supply = En_Supply + Power_Supp
         Total_Demand =  Total_Demand + Demand  
