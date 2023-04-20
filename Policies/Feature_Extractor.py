@@ -47,8 +47,8 @@ class CustomGNN(BaseFeaturesExtractor):
         self.normalization_1 = torch.nn.BatchNorm1d(n_dim * n_p)
 
         self.W_F = torch.nn.Linear(n_dim * n_p, features_dim)
-        self.full_context_nn = torch.nn.Linear(19, 128)
-        self.switch_encoder = torch.nn.Linear(16, 128)
+        self.full_context_nn = torch.nn.Sequential(*[torch.nn.Linear(19, features_dim), torch.nn.Linear(features_dim, features_dim)])
+        self.switch_encoder = torch.nn.Sequential(*[torch.nn.Linear(16, features_dim), torch.nn.Linear(features_dim, features_dim)])
 
         self.activ = torch.nn.LeakyReLU()
 

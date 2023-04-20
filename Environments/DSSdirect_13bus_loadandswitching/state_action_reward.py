@@ -1,13 +1,15 @@
 """
 In this file the functions to evaluate the state, reward are defined and also the action is implemented
 """
+import math
+
 import numpy as np
 from Environments.DSSdirect_13bus_loadandswitching.DSS_Initialize import*
 
 # To get the details of switches and their status
 def switchInfo(DSSCktobj):
     #Input:   DSS Circuit Object
-    #Returns: A list of dictionaries which contains:
+    #Returns: A list of dictionaries which contains: 
     #         The name of the switch.
     #         The associated line of the switch (the edge label).
     #         The status of the switch in the DSS Circuit object
@@ -45,16 +47,24 @@ def get_state(DSSCktobj, G, edgesout):
         ctidx = 2 * np.array(range(0, min(int(S.size/ 2), 3)))
         P = S[ctidx] #active power in KW
         Q = S[ctidx + 1] #reactive power in KVar
-        Power_Supp = sum(P) # total active power supplied at load
-        Demand = float (DSSCktobj.dss.Properties.Value('kW'))
-        if np.isnan(Power_Supp):
+        if (np.isnan(P).any()) or (np.isnan(Q).any()):
             Power_Supp = 0    # Nodes which are isolated with loads but no generators return nan-- ignore that(consider as inactive)
+        else:
+            Power_Supp = sum(P) # total active power supplied at load
+        if math.isnan(Power_Supp) or math.isinf(Power_Supp):
+            Power_Supp = 0
+        Demand = float (DSSCktobj.dss.Properties.Value('kW'))
+        # print("*****",Power_Supp)
         En_Supply = En_Supply + Power_Supp
         Total_Demand =  Total_Demand + Demand
+
+    if Total_Demand !=0:
         En_Supply_perc = En_Supply/Total_Demand
+    else:
+        En_Supply_perc = -1
+
 
     # Extracting the pu node voltages at all buses
-
     Vmagpu=[]
     active_conn=[]
     for b in node_list:
@@ -145,14 +155,14 @@ def take_action(action, out_edges):
 
     #----Disable outage lines from DSSCircuit and also from Graph Scenario
     for o_e in out_edges:
-        (u,v) = o_e        
+        (u,v) = o_e
         if G_sc.has_edge(u,v):
            G_sc.remove_edge(u,v) # Remove the edge in graph domain
         # Remove the element from the DSSCktobj
         branch_name = G_init.edges[o_e]['label'][0]
         DSSCktObj.dss.Circuit.SetActiveElement(branch_name)
         DSSCktObj.dss.Text.Command(f'Open {branch_name} term=1')
-        DSSCktObj.dss.Solution.Solve() 
+        DSSCktObj.dss.Solution.Solve()
 
 
     #---------- Also remove the open switches from Graph Scenario
@@ -215,8 +225,8 @@ def Volt_Constr(Vmagpu,active_conn):
     #Input: The pu magnitude of node voltages at all buses, node activated or node phase of all buses
     Vmax=1.10
     Vmin=0.90
-
     V_Viol= []
+
     for i in range(len(active_conn)):
         for phase_co in active_conn[i]:
             if (Vmagpu[i][phase_co-1]<Vmin):
@@ -225,7 +235,11 @@ def Volt_Constr(Vmagpu,active_conn):
             if (Vmagpu[i][phase_co-1]>Vmax):
                 viol = abs(Vmagpu[i][phase_co-1]-Vmax)/Vmax
                 V_Viol.append(viol)
-            V_ViolSum =np.mean(V_Viol)
+    if len(V_Viol)!=0:
+        V_ViolSum = (np.sum(V_Viol))/(len(G_init.nodes())*3)
+    else:
+        V_ViolSum = 0
+
     return V_ViolSum
 
 
@@ -234,12 +248,13 @@ def get_reward(observ_dict):
     # ----#Output: reward- minimize load outage, penalize non convergence and closing of outage lines
 
 
-    if observ_dict['ConvergenceViolation'] >0:
+    if observ_dict['ConvergenceViolation'] >0 or math.isinf(observ_dict['VoltageViolation']):
         reward =np.array([0.0])
     else:
 
         reward= observ_dict['EnergySupp'] - observ_dict['VoltageViolation']
 
     # reward= observ_dict['EnergySupp']-observ_dict['ConvergenceViolation']-observ_dict['VoltageViolation']
+    # print(observ_dict['VoltageViolation'], observ_dict['EnergySupp'])
     return reward
 
