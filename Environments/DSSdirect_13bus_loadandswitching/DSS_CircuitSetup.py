@@ -91,8 +91,6 @@ class Branch:  # to extract properties of branch
         self.bus_to=bus2
         #self.nphases=nphases
         self.Cap=I_avg
-        # self.MaxCap=MaxCap
-
 
 def CktModSetup(DSSfile,sectional_swt,tie_swt,generators): # give tie switches and sectionalizing switches as input
     DSSCktobj= DSS(DSSfile) #create a circuit object

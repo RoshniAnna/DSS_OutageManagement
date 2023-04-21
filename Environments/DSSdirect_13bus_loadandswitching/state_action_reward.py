@@ -31,8 +31,8 @@ def get_state(DSSCktobj, G, edgesout):
     #Input: DSS Circuit Object, the equivalent Graph representation, and the out edges
     #Returns: Dictionary to indicate state which includes:
               # Total Energy Supplied, bus voltage (nodes), branch powerflow (edges), adjacency, voltage and convergence violations
-
-
+    
+        
     Adj_mat = nx.adjacency_matrix(G,nodelist=node_list) # adjacency matrix keeping node order fixed
 
     # Estimating the total energy supplied to the end users given the state encompassed in DSS Circuit
@@ -48,26 +48,26 @@ def get_state(DSSCktobj, G, edgesout):
         P = S[ctidx] #active power in KW
         Q = S[ctidx + 1] #reactive power in KVar
         if (np.isnan(P).any()) or (np.isnan(Q).any()):
-            Power_Supp = 0    # Nodes which are isolated with loads but no generators return nan-- ignore that(consider as inactive)
+
+            Power_Supp = 0    # Nodes which are isolated with loads but no generators return nan-- ignore that(consider as inactive)  
         else:
             Power_Supp = sum(P) # total active power supplied at load
-        if math.isnan(Power_Supp) or math.isinf(Power_Supp):
+        if math.isnan(Power_Supp):
             Power_Supp = 0
-        Demand = float (DSSCktobj.dss.Properties.Value('kW'))
-        # print("*****",Power_Supp)
+        Demand = float (DSSCktobj.dss.Properties.Value('kW'))  
         En_Supply = En_Supply + Power_Supp
-        Total_Demand =  Total_Demand + Demand
-
+        Total_Demand =  Total_Demand + Demand  
+   
     if Total_Demand !=0:
         En_Supply_perc = En_Supply/Total_Demand
     else:
-        En_Supply_perc = -1
-
-
-    # Extracting the pu node voltages at all buses
+        En_Supply_perc = -1   
+    # print(f"The energy supplied:{En_Supply}, total demand:{Total_Demand}, percentage:{En_Supply_perc}")
+         
+    # Extracting the pu node voltages at all buses    
     Vmagpu=[]
     active_conn=[]
-    for b in node_list:
+    for b in node_list:    
         V = Bus(DSSCktobj,b).Vmag
         active_conn.append(Bus(DSSCktobj,b).nodes)
         temp_flag = np.isnan(V) # Nodes which are isolated with loads but no generators return nan-- ignore that(consider as inactive)
@@ -76,27 +76,27 @@ def get_state(DSSCktobj, G, edgesout):
             temp_conn=[n for n in active_conn[node_list.index(b)] if temp_flag[n-1]==False] #the bus nodes active are only those with numerical(not nan)
             active_conn[node_list.index(b)]=np.array(temp_conn) #only active node connections
         Vmagpu.append(V)
-
-    # Extracting the pu average branch currents(also includes the open branches)
-
+    
+    # Extracting the pu average branch currents(also includes the open branches)           
+    
     I_flow=[]
     for e in G_init.edges(data=True):
         branchname=e[2]['label'][0]
         I=Branch(DSSCktobj, branchname).Cap
         I_flow.append(I)
 
-    # The convergence test and violation penalty
+    # The convergence test and violation penalty   
     if DSSCktobj.dss.Solution.Converged():
         conv_flag=1
         Conv_const=0
     else:
         conv_flag=0
-        Conv_const=10# NonConvergence penalty
+        Conv_const=10# NonConvergence penalty   
 
-
+    
     # The voltage violation
     V_viol=Volt_Constr(Vmagpu,active_conn)
-
+     
     # To mask those switches which are out (including line and load switches)
     SwitchMasks=[]
     for x in SwitchLines:
@@ -106,14 +106,14 @@ def get_state(DSSCktobj, G, edgesout):
             SwitchMasks.append(0)
     for y in dispatch_loads:
         SwitchMasks.append(0)
-
-
+    
+    
     return {
         "EnergySupp":np.array([En_Supply_perc]),
-        "NodeFeat(BusVoltage)":np.array(Vmagpu),
+        "NodeFeat(BusVoltage)":np.array(Vmagpu), 
         "EdgeFeat(Branchflow)":np.array(I_flow),
-        "Adjacency":np.array(Adj_mat.todense()),
-        "VoltageViolation":np.array([V_viol]),
+        "Adjacency":np.array(Adj_mat.todense()), 
+        "VoltageViolation":np.array([V_viol]), 
         "ConvergenceViolation":np.array([Conv_const]),
         "ActionMasking":np.array(SwitchMasks)}
 
@@ -124,6 +124,8 @@ def take_action(action, out_edges):
     #  the status of loads appended in action after switches: 0 shed, 1:picked up
     #Returns:the circuit object with action implemented (and slack assigned), also the graph scenario
 
+    # print(f'The outages:{out_edges}')
+    # print(f'The action:{action}')
     DSSCktObj,G_init,conv_flag = initialize() # local DSS object for just implementing action
     G_sc = G_init.copy() # Copy to create graph scenario
 
@@ -220,26 +222,28 @@ def take_action(action, out_edges):
 
 
 
-# Constraint for voltage violation
+# Constraint for voltage violation 
 def Volt_Constr(Vmagpu,active_conn):
     #Input: The pu magnitude of node voltages at all buses, node activated or node phase of all buses
     Vmax=1.10
-    Vmin=0.90
-    V_Viol= []
 
+    Vmin=0.90    
+    V_Viol= []
+    
     for i in range(len(active_conn)):
         for phase_co in active_conn[i]:
-            if (Vmagpu[i][phase_co-1]<Vmin):
+            if (Vmagpu[i][phase_co-1]<Vmin):  
                 viol = abs(Vmin-Vmagpu[i][phase_co-1])/Vmin
                 V_Viol.append(viol)
-            if (Vmagpu[i][phase_co-1]>Vmax):
-                viol = abs(Vmagpu[i][phase_co-1]-Vmax)/Vmax
+            if (Vmagpu[i][phase_co-1]>Vmax): 
+                viol = abs(Vmagpu[i][phase_co-1]-Vmax)/Vmax                   
                 V_Viol.append(viol)
     if len(V_Viol)!=0:
         V_ViolSum = (np.sum(V_Viol))/(len(G_init.nodes())*3)
-    else:
-        V_ViolSum = 0
 
+    else: 
+        V_ViolSum = 0
+            
     return V_ViolSum
 
 

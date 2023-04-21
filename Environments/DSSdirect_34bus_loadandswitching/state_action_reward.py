@@ -45,16 +45,23 @@ def get_state(DSSCktobj, G, edgesout):
         ctidx = 2 * np.array(range(0, min(int(S.size/ 2), 3)))
         P = S[ctidx] #active power in KW
         Q = S[ctidx + 1] #reactive power in KVar
-        Power_Supp = sum(P) # total active power supplied at load
-        Demand = float (DSSCktobj.dss.Properties.Value('kW'))
-        if np.isnan(Power_Supp):
-            Power_Supp = 0    # Nodes which are isolated with loads but no generators return nan-- ignore that(consider as inactive)   
+        if (np.isnan(P).any()) or (np.isnan(Q).any()):
+            Power_Supp = 0    # Nodes which are isolated with loads but no generators return nan-- ignore that(consider as inactive)  
+        else:
+            Power_Supp = sum(P) # total active power supplied at load
+        if math.isnan(Power_Supp):
+            Power_Supp = 0
+        Demand = float (DSSCktobj.dss.Properties.Value('kW'))  
         En_Supply = En_Supply + Power_Supp
         Total_Demand =  Total_Demand + Demand  
+   
+    if Total_Demand !=0:
         En_Supply_perc = En_Supply/Total_Demand
-                
-    # Extracting the pu node voltages at all buses
-    
+    else:
+        En_Supply_perc = -1   
+ 
+         
+    # Extracting the pu node voltages at all buses    
     Vmagpu=[]
     active_conn=[]
     for b in node_list:    
@@ -83,10 +90,10 @@ def get_state(DSSCktobj, G, edgesout):
         conv_flag=0
         Conv_const=10# NonConvergence penalty   
 
-
+    
     # The voltage violation
     V_viol=Volt_Constr(Vmagpu,active_conn)
-
+     
     # To mask those switches which are out (including line and load switches)
     SwitchMasks=[]
     for x in SwitchLines:
@@ -96,14 +103,14 @@ def get_state(DSSCktobj, G, edgesout):
             SwitchMasks.append(0)
     for y in dispatch_loads:
         SwitchMasks.append(0)
-
-
+    
+    
     return {
         "EnergySupp":np.array([En_Supply_perc]),
-        "NodeFeat(BusVoltage)":np.array(Vmagpu),
+        "NodeFeat(BusVoltage)":np.array(Vmagpu), 
         "EdgeFeat(Branchflow)":np.array(I_flow),
-        "Adjacency":np.array(Adj_mat.todense()),
-        "VoltageViolation":np.array([V_viol]),
+        "Adjacency":np.array(Adj_mat.todense()), 
+        "VoltageViolation":np.array([V_viol]), 
         "ConvergenceViolation":np.array([Conv_const]),
         "ActionMasking":np.array(SwitchMasks)}
 
@@ -209,23 +216,26 @@ def take_action(action, out_edges):
     return DSSCktObj,G_sc
 
 
-
-# Constraint for voltage violation
+# Constraint for voltage violation 
 def Volt_Constr(Vmagpu,active_conn):
     #Input: The pu magnitude of node voltages at all buses, node activated or node phase of all buses
     Vmax=1.10
-    Vmin=0.90
-
+    Vmin=0.90    
     V_Viol= []
+    
     for i in range(len(active_conn)):
         for phase_co in active_conn[i]:
-            if (Vmagpu[i][phase_co-1]<Vmin):
+            if (Vmagpu[i][phase_co-1]<Vmin):  
                 viol = abs(Vmin-Vmagpu[i][phase_co-1])/Vmin
                 V_Viol.append(viol)
-            if (Vmagpu[i][phase_co-1]>Vmax):
-                viol = abs(Vmagpu[i][phase_co-1]-Vmax)/Vmax
+            if (Vmagpu[i][phase_co-1]>Vmax): 
+                viol = abs(Vmagpu[i][phase_co-1]-Vmax)/Vmax                   
                 V_Viol.append(viol)
-            V_ViolSum =np.mean(V_Viol)
+    if len(V_Viol)!=0:
+        V_ViolSum = (np.sum(V_Viol))/(len(G_init.nodes())*3)
+    else: 
+        V_ViolSum = 0
+            
     return V_ViolSum
 
 
