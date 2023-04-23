@@ -100,7 +100,7 @@ def CktModSetup(DSSfile,sectional_swt,tie_swt,generators): # give tie switches a
     DSSCktobj.dss.Text.Command("Set maxcontroliter=5000")
     # Donot put control mode= OFF at all...it will not allow switch control
     DSSCktobj.dss.Basic.AllowForms(0)
-
+    DSSCktobj.dss.Error.EarlyAbort(0)
     #### Make switch additions #####
 
     for sline in sectional_swt:  # the sectionalizing switch control is established (the normal state is closed)
