@@ -6,9 +6,9 @@
 #SBATCH --ntasks-per-node=8
 #SBATCH --mem=50000
 #SBATCH --gres=gpu:1
-#SBATCH --job-name="UAM_Journal"
-#SBATCH --output=output_UAM_Journal.out
-#SBATCH --error=error_UAM_Journal.err
+#SBATCH --job-name="ONR_Reconfiguration"
+#SBATCH --output=output_ONR_Reconfiguration_Journal.out
+#SBATCH --error=error_ONR_Reconfiguration_Journal.err
 #SBATCH --mail-user=stevepau@buffalo.edu
 #SBATCH --mail-type=ALL
 #Specifies that the job will be requeued after a node failure.

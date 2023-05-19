@@ -37,10 +37,15 @@ class DSS_OutCtrl_Env(gym.Env):
         # Getting observation before action is executed
         observation = get_state(self.DSSCktObj, self.G, self.outedges) #function to get state of the network
         # Executing the switching action
-        self.DSSCktObj, self.G = take_action(action, self.outedges) #function to implement the action
+        try:
+            self.DSSCktObj, self.G = take_action(action, self.outedges) #function to implement the action
         #Getting observation after action is taken
-        obs_post_action = get_state(self.DSSCktObj, self.G, self.outedges)
-        reward = get_reward(obs_post_action) #function to calculate reward
+            obs_post_action = get_state(self.DSSCktObj, self.G, self.outedges)
+            reward = get_reward(obs_post_action) #function to calculate reward
+        except:
+            obs_post_action = get_state(self.DSSCktObj, self.G, self.outedges)
+            reward =np.array([0.0])
+
         done = True
         info = {"is_success": done,
                     "episode": {
@@ -76,7 +81,10 @@ class DSS_OutCtrl_Env(gym.Env):
             (u,v)=o_e
             branch_name= G_init.edges[o_e]['label'][0]
             self.DSSCktObj.dss.Text.Command(f'Open {branch_name} term=1') #disable the outage line
-            self.DSSCktObj.dss.Solution.Solve() 
+            try:
+                self.DSSCktObj.dss.Solution.Solve() 
+            except:
+                self.reset()
 
 
         self.G.remove_edges_from(out_edges) #each instance of the graph includes the outage scenario

@@ -1,13 +1,7 @@
 import numpy as np
 import gym
 from stable_baselines3 import PPO
-# from stable_baselines.common import make_vec_env
-# from Environments.Bus_13.DSS_OutCtrl_Env import DSS_OutCtrl_Env
-
-# import json
-# import datetime as dt
 import torch
-# from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3 import A2C, PPO
 from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback
 from Policies.CustomPolicies import ActorCriticGCAPSPolicy
@@ -63,21 +57,58 @@ if __name__ == '__main__':
 
     checkpoint_callback = CheckpointCallback(save_freq=training_config.save_freq, save_path=training_config.model_save,
                                          name_prefix=training_config.node_encoder)
-    # env = SubprocVecEnv([make_env(i) for i in range(num_cpu)])
-    env = DSS_OutCtrl_Env()
+    env = SubprocVecEnv([make_env(i) for i in range(num_cpu)])
+    # env = DSS_OutCtrl_Env()
 
-    policy_kwargs = dict(
-        features_extractor_class=CustomGNN,
-        features_extractor_kwargs=dict(features_dim=training_config.features_dim,node_dim=3),
-        #activation_fn=torch.nn.Sigmoid,
-        net_arch=[dict(pi=[training_config.features_dim,training_config.features_dim])],
-        device=training_config.device
-        # optimizer_class = th.optim.RMSprop,
-        # optimizer_kwargs = dict(alpha=0.89, eps=rms_prop_eps, weight_decay=0)
-    )
+    if training_config.node_encoder == "CAPAM":
+
+        policy_kwargs = dict(
+            features_extractor_class=CustomGNN,
+            features_extractor_kwargs=dict(features_dim=training_config.features_dim,node_dim=3),
+            #activation_fn=torch.nn.Sigmoid,
+            net_arch=[
+                dict(
+                    pi=
+                    [training_config.features_dim,
+                     2*training_config.features_dim,
+                     2*training_config.features_dim,
+                     training_config.features_dim],
+                    vi=[training_config.features_dim,
+                     2*training_config.features_dim,
+                     2*training_config.features_dim,
+                     training_config.features_dim]
+                )],
+            device=training_config.device
+            # optimizer_class = th.optim.RMSprop,
+            # optimizer_kwargs = dict(alpha=0.89, eps=rms_prop_eps, weight_decay=0)
+        )
+
+    else:
+
+        policy_kwargs = dict(
+            # features_extractor_class=CustomGNN,
+            # features_extractor_kwargs=dict(features_dim=training_config.features_dim, node_dim=3),
+            # activation_fn=torch.nn.Sigmoid,
+            net_arch=[
+                dict(
+                    pi=
+                    [training_config.features_dim,
+                     2 * training_config.features_dim,
+                     2 * training_config.features_dim,
+                     training_config.features_dim],
+                    vi=[training_config.features_dim,
+                        2 * training_config.features_dim,
+                        2 * training_config.features_dim,
+                        training_config.features_dim]
+                )]
+            # device=training_config.device
+            # optimizer_class = th.optim.RMSprop,
+            # optimizer_kwargs = dict(alpha=0.89, eps=rms_prop_eps, weight_decay=0)
+        )
+
 
     model = PPO(
-        policy=ActorCriticGCAPSPolicy, 
+        policy=ActorCriticGCAPSPolicy if training_config.node_encoder == "CAPAM" else "MultiInputPolicy",
         env=env,
         tensorboard_log=tb_logger_location, 
         policy_kwargs=policy_kwargs, 
