@@ -106,7 +106,6 @@ class ActorCriticGCAPSPolicy(BasePolicy):
             th.nn.Tanh()
             ]
         self.value_net = th.nn.Sequential(*value_net_net).to(device=device)
-        from train import CustomGNN
         self.features_extractor = CustomGNN(
             node_dim=node_dim,
             features_dim=features_dim,

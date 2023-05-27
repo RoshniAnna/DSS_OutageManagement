@@ -23,7 +23,7 @@ class CustomGNN(BaseFeaturesExtractor):
                  features_dim: int = 256,
                  n_layers=2,
                  n_dim=256,
-                 n_p=2,
+                 n_p=3,
                  node_dim=3,
                  n_K=1,
                  ):
@@ -36,11 +36,12 @@ class CustomGNN(BaseFeaturesExtractor):
         self.init_embed = torch.nn.Linear(node_dim, n_dim * n_p)
         self.W_L_1_G1 = torch.nn.Linear(n_dim * (n_K + 1) * n_p, n_dim)
         self.W_L_1_G2 = torch.nn.Linear(n_dim * (n_K + 1) * n_p, n_dim)
+        self.W_L_1_G3 = torch.nn.Linear(n_dim * (n_K + 1) * n_p, n_dim)
         self.W_F = torch.nn.Linear(n_dim * n_p, features_dim)
         self.full_context_nn = torch.nn.Sequential(*[torch.nn.Linear(19, features_dim), torch.nn.Linear(features_dim, features_dim)])
         self.switch_encoder = torch.nn.Sequential(*[torch.nn.Linear(16, features_dim), torch.nn.Linear(features_dim, features_dim)])
 
-        self.activ = torch.nn.LeakyReLU()
+        self.activ = torch.nn.TanH()
 
     def forward(self, data):
         X = data['NodeFeat(BusVoltage)']
@@ -67,8 +68,12 @@ class CustomGNN(BaseFeaturesExtractor):
                                           torch.matmul(L, F0)[:, :, :]
                                           ),
                                          -1))
+        g_L1_3 = self.W_L_1_G3(torch.cat((F0[:, :, :],
+                                          torch.matmul(L, F0)[:, :, :]
+                                          ),
+                                         -1))
 
-        F1 = torch.cat((g_L1_1, g_L1_2), -1)
+        F1 = torch.cat((g_L1_1, g_L1_2, g_L1_3), -1)
         # F1 = self.activ(F1)
 
         F_final = self.W_F(F1)

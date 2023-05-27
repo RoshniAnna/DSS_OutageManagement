@@ -4,12 +4,12 @@ from stable_baselines3 import PPO
 import torch
 from stable_baselines3 import A2C, PPO
 from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback
-from Policies.CustomPolicies import ActorCriticGCAPSPolicy
+
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 import pickle
 from stable_baselines3.common.utils import set_random_seed
-from Policies.Feature_Extractor import CustomGNN
+
 from Configs.training_config import get_training_config
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
@@ -41,12 +41,16 @@ def make_env(rank, seed=0):
 
 if __name__ == '__main__':
 
-    env_size = 13
+    env_size = 34
 
     if env_size == 13:
         from Environments.DSSdirect_13bus_loadandswitching.DSS_OutCtrl_Env import DSS_OutCtrl_Env
-    # elif env_size == 34: # will add more conditions once the 13 bus is fixed
-    #     from Environments.DSSdirect_13bus_loadandswitching.DSS_OutCtrl_Env import DSS_OutCtrl_Env
+        from Policies.Feature_Extractor import CustomGNN
+        from Policies.CustomPolicies import ActorCriticGCAPSPolicy
+    elif env_size == 34: # will add more conditions once the 13 bus is fixed
+        from Environments.DSSdirect_34bus_loadandswitching.DSS_OutCtrl_Env import DSS_OutCtrl_Env
+        from Policies.bus_34.Feature_Extractor import CustomGNN
+        from Policies.bus_34.CustomPolicies import ActorCriticGCAPSPolicy
 
     training_config = get_training_config()
     num_cpu = training_config.num_cpu
@@ -57,8 +61,8 @@ if __name__ == '__main__':
 
     checkpoint_callback = CheckpointCallback(save_freq=training_config.save_freq, save_path=training_config.model_save,
                                          name_prefix=training_config.node_encoder)
-    env = SubprocVecEnv([make_env(i) for i in range(num_cpu)])
-    # env = DSS_OutCtrl_Env()
+    # env = SubprocVecEnv([make_env(i) for i in range(num_cpu)])
+    env = DSS_OutCtrl_Env()
 
     if training_config.node_encoder == "CAPAM":
 

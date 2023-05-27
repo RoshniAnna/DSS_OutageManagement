@@ -2,7 +2,7 @@
 In this file the functions to evaluate the state, reward are defined and also the action is implemented
 """
 import numpy as np
-from DSS_Initialize import*
+from Environments.DSSdirect_34bus_loadandswitching.DSS_Initialize import*
 
 # To get the details of switches and their status
 def switchInfo(DSSCktobj):
@@ -243,13 +243,13 @@ def get_reward(observ_dict):
     #Input: A dictionary describing the state of the network
     # ----#Output: reward- minimize load outage, penalize non convergence and closing of outage lines
 
-
-    if observ_dict['ConvergenceViolation'] >0:
-        reward =np.array([0.0])
+    if observ_dict['ConvergenceViolation'] > 0 or math.isinf(observ_dict['VoltageViolation']):
+        reward = np.array([0.0])
     else:
 
-        reward= observ_dict['EnergySupp'] - observ_dict['VoltageViolation']
+        reward = observ_dict['EnergySupp'] - observ_dict['VoltageViolation']
 
     # reward= observ_dict['EnergySupp']-observ_dict['ConvergenceViolation']-observ_dict['VoltageViolation']
+    # print(observ_dict['VoltageViolation'], observ_dict['EnergySupp'])
     return reward
 

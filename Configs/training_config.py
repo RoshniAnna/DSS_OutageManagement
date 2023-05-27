@@ -8,7 +8,7 @@ def get_training_config(args=None):
 
     parser.add_argument('--features_dim', type=int, default=128, help="Embedding length")
     parser.add_argument('--total_steps', type=int, default=5000000, help='Total number of steps')
-    parser.add_argument('--node_encoder', type=str, default='MLP',
+    parser.add_argument('--node_encoder', type=str, default='CAPAM',
                         help='Node embedding type. Available ones are [CAPAM, MLP]')
     parser.add_argument('--batch_size', type=int, default=20000, help='Batch size for training')#20000
     parser.add_argument('--n_steps', type=int, default=50000, help='Number of steps for rollout')#50000

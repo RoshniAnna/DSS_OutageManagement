@@ -10,7 +10,7 @@ The final DSS circuit which will be used by the environment is created.
 
 import os
 import networkx as nx
-from  DSS_CircuitSetup import*
+from  Environments.DSSdirect_34bus_loadandswitching.DSS_CircuitSetup import*
 
 #------------------- User defined inputs to modify the standard test network ---------------------------------
 
@@ -40,7 +40,7 @@ n_actions = len(sectional_swt) + len(tie_swt) + len(dispatch_loads) # the switch
 #------------ Define the network with additions of DER, BESS and switches -------------------------------------
 def initialize():       
     FolderName=os.path.dirname(os.path.realpath(__file__))
-    DSSfile=r""+ FolderName+ "/ieee34Mod1.DSS"
+    DSSfile=r""+ FolderName+ "/ieee34Mod1.dss"
     # DSSfile="IEEE13Nodeckt.dss"
     DSSCktobj = CktModSetup(DSSfile,sectional_swt,tie_swt,generators) # initially the sectionalizing switches close and tie switches open
     DSSCktobj.dss.Solution.Solve() #solving snapshot power flows

@@ -84,7 +84,7 @@ class DSS_OutCtrl_Env(gym.Env):
             try:
                 self.DSSCktObj.dss.Solution.Solve() 
             except:
-                self.reset()
+                return self.reset()
 
 
         self.G.remove_edges_from(out_edges) #each instance of the graph includes the outage scenario
