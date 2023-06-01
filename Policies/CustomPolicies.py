@@ -83,7 +83,7 @@ class ActorCriticGCAPSPolicy(BasePolicy):
             features_extractor_kwargs: Optional[Dict[str, Any]] = None,
             optimizer_class: Type[th.optim.Optimizer] = th.optim.Adam,
             optimizer_kwargs: Optional[Dict[str, Any]] = None,
-            device: Union[th.device, str] = "auto"
+            device: Union[th.device, str] = "cpu"
             ):
         super(ActorCriticGCAPSPolicy, self).__init__(
             observation_space,
@@ -106,6 +106,7 @@ class ActorCriticGCAPSPolicy(BasePolicy):
             th.nn.Tanh()
             ]
         self.value_net = th.nn.Sequential(*value_net_net).to(device=device)
+        from Policies.Feature_Extractor import CustomGNN 
         self.features_extractor = CustomGNN(
             node_dim=node_dim,
             features_dim=features_dim,
